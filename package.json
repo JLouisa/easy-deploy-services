@@ -1,0 +1,14 @@
+{
+  "name": "easy-deploy-service",
+  "version": "1.0.0",
+  "description": "Deploy React projects",
+  "main": "app.js",
+  "scripts": {
+    "test": "test"
+  },
+  "author": "Jonathan Louisa",
+  "license": "ISC",
+  "dependencies": {
+    "typescript": "^5.4.3"
+  }
+}
