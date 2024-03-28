@@ -8,6 +8,8 @@
 // import { getAllFiles } from "./file";
 // import { uploadFile } from "./aws";
 
+import { env } from "./env";
+
 import { commandOptions, createClient } from "redis";
 import { downloadS3Files } from "./aws";
 
@@ -33,10 +35,11 @@ async function main() {
     // }
 
     // const id = response?.element;
-    const id = "42d4iili";
+    const id = env.UPLOAD_SERVICE === "aws" ? "p694l8o3" : "42d4iili";
+    console.log("ID:", id);
 
     // const files = await downloadS3Files(`output/${id}/`);
-    const files = await downloadS3Files(id);
+    await downloadS3Files(id);
     break;
   }
 }
