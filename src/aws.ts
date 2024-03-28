@@ -1,11 +1,13 @@
+import { env } from "./env";
+import fs from "fs";
+import path from "path";
+import { getOutputDir } from "./utils";
+import { writeFile } from "fs/promises";
 import {
   S3Client,
   GetObjectCommand,
-  ListObjectsCommand,
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
-import { env } from "./env";
-import fs from "fs";
 
 const uploadService = env.UPLOAD_SERVICE === "aws" ? true : false;
 
@@ -25,8 +27,16 @@ const s3 = new S3Client([
   },
 ]);
 
+const streamToString = (stream: NodeJS.ReadableStream) =>
+  new Promise<string>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    stream.on("data", (chunk) => chunks.push(chunk));
+    stream.on("error", reject);
+    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+  });
+
 export const downloadS3Files = async (id: string) => {
-  console.log("Called");
+  console.log("Download started");
 
   const prefix = `output/${id}`; // Adjust the prefix dynamically
   console.log("Prefix:", prefix);
@@ -37,16 +47,39 @@ export const downloadS3Files = async (id: string) => {
     Prefix: prefix,
   };
 
-  const command = new ListObjectsV2Command(params);
+  // Get list of all specified files
+  const getListAllFiles = await s3.send(new ListObjectsV2Command(params));
 
-  try {
-    // Get list of all specified files
-    const getAllFiles = await s3.send(command);
-    // console.log("Files:", getAllFiles);
-    const files = getAllFiles?.Contents?.map((object) => object.Key);
-    console.log(files);
-  } catch (error) {
-    console.error("Error listing files in bucket:", error);
-    throw error;
-  }
+  // Create a directory to save downloaded files
+
+  // Download each file asynchronously
+  const downloadPromises = (getListAllFiles.Contents || [])
+    .map(async (object) => {
+      if (object?.Key) {
+        const outputDir = path.join(getOutputDir(), id);
+        fs.mkdirSync(outputDir, { recursive: true });
+        const outputFilePath = path.join(outputDir, path.basename(object.Key));
+        const commandGet = new GetObjectCommand({
+          Bucket: env.BUCKET_NAME,
+          Key: object.Key,
+        });
+
+        try {
+          const { Body } = await s3.send(commandGet);
+
+          // Finish saving the files to the output directory
+          const bodyContents = await streamToString(
+            Body as NodeJS.ReadableStream
+          );
+          return writeFile(outputFilePath, bodyContents);
+        } catch (error) {
+          console.error("Error occurred while downloading:", error);
+        }
+      }
+    })
+    .filter(Boolean); // Filter out undefined values
+
+  await Promise.all(downloadPromises)
+    .then(() => console.log("All files downloaded successfully"))
+    .catch((error) => console.error("Error occurred during download:", error));
 };
