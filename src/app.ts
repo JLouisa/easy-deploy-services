@@ -22,25 +22,25 @@ async function main() {
   console.log("Listening for build-queue events");
 
   while (true) {
-    // const response = await redis.brPop(
-    //   commandOptions({ isolated: true }),
-    //   "build-queue",
-    //   0
-    // );
+    const response = await redis.brPop(
+      commandOptions({ isolated: true }),
+      "build-queue",
+      0
+    );
 
-    // console.log(response?.element);
-    // if (!response?.element) {
-    //   console.log("Key doesn't exist");
-    //   continue;
-    // }
+    console.log(response?.element);
+    if (!response?.element) {
+      console.log("Key doesn't exist");
+      continue;
+    }
 
     // const id = response?.element;
-    const id = env.UPLOAD_SERVICE === "aws" ? "p694l8o3" : "42d4iili";
+    // const id = env.UPLOAD_SERVICE === "aws" ? "j3uprnwj" : "42d4iili";
+    const id = response.element;
     console.log("ID:", id);
 
     // const files = await downloadS3Files(`output/${id}/`);
     await downloadS3Files(id);
-    break;
   }
 }
 

@@ -14,7 +14,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.downloadS3Files = void 0;
 const env_1 = require("./env");
-const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const utils_1 = require("./utils");
 const promises_1 = require("fs/promises");
@@ -35,6 +34,13 @@ const s3 = new client_s3_1.S3Client([
         // debug: true, // Enable debugging
     },
 ]);
+// const streamToString = (stream: NodeJS.ReadableStream) =>
+//   new Promise<string>((resolve, reject) => {
+//     const chunks: Buffer[] = [];
+//     stream.on("data", (chunk) => chunks.push(chunk));
+//     stream.on("error", reject);
+//     stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+//   });
 const streamToString = (stream) => new Promise((resolve, reject) => {
     const chunks = [];
     stream.on("data", (chunk) => chunks.push(chunk));
@@ -53,22 +59,26 @@ const downloadS3Files = (id) => __awaiter(void 0, void 0, void 0, function* () {
     // Get list of all specified files
     const getListAllFiles = yield s3.send(new client_s3_1.ListObjectsV2Command(params));
     // Create a directory to save downloaded files
+    const outputDir = (0, utils_1.getOutputDir)();
+    yield (0, promises_1.mkdir)(outputDir, { recursive: true }); // Ensure the directory is created
     // Download each file asynchronously
     const downloadPromises = (getListAllFiles.Contents || [])
         .map((object) => __awaiter(void 0, void 0, void 0, function* () {
+        console.log("Object:", object);
         if (object === null || object === void 0 ? void 0 : object.Key) {
-            const outputDir = path_1.default.join((0, utils_1.getOutputDir)(), id);
-            fs_1.default.mkdirSync(outputDir, { recursive: true });
-            const outputFilePath = path_1.default.join(outputDir, path_1.default.basename(object.Key));
+            const objectKey = object.Key;
             const commandGet = new client_s3_1.GetObjectCommand({
                 Bucket: env_1.env.BUCKET_NAME,
-                Key: object.Key,
+                Key: objectKey,
             });
             try {
                 const { Body } = yield s3.send(commandGet);
+                // Ensure the directory structure exists for the file
+                const dirPath = path_1.default.dirname(objectKey);
+                yield (0, promises_1.mkdir)(dirPath, { recursive: true });
                 // Finish saving the files to the output directory
                 const bodyContents = yield streamToString(Body);
-                return (0, promises_1.writeFile)(outputFilePath, bodyContents);
+                return (0, promises_1.writeFile)(objectKey, bodyContents);
             }
             catch (error) {
                 console.error("Error occurred while downloading:", error);

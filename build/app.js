@@ -14,10 +14,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// import { generate, getOutputDir } from "./utils";
-// import { getAllFiles } from "./file";
-// import { uploadFile } from "./aws";
-const env_1 = require("./env");
 const redis_1 = require("redis");
 const aws_1 = require("./aws");
 const redis = (0, redis_1.createClient)().on("error", (err) => console.log("Redis Client Error", err));
@@ -26,22 +22,18 @@ function main() {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Listening for build-queue events");
         while (true) {
-            // const response = await redis.brPop(
-            //   commandOptions({ isolated: true }),
-            //   "build-queue",
-            //   0
-            // );
-            // console.log(response?.element);
-            // if (!response?.element) {
-            //   console.log("Key doesn't exist");
-            //   continue;
-            // }
+            const response = yield redis.brPop((0, redis_1.commandOptions)({ isolated: true }), "build-queue", 0);
+            console.log(response === null || response === void 0 ? void 0 : response.element);
+            if (!(response === null || response === void 0 ? void 0 : response.element)) {
+                console.log("Key doesn't exist");
+                continue;
+            }
             // const id = response?.element;
-            const id = env_1.env.UPLOAD_SERVICE === "aws" ? "p694l8o3" : "42d4iili";
+            // const id = env.UPLOAD_SERVICE === "aws" ? "j3uprnwj" : "42d4iili";
+            const id = response.element;
             console.log("ID:", id);
             // const files = await downloadS3Files(`output/${id}/`);
             yield (0, aws_1.downloadS3Files)(id);
-            break;
         }
     });
 }
