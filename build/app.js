@@ -16,6 +16,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const redis_1 = require("redis");
 const aws_1 = require("./aws");
+const utils_1 = require("./utils");
 const redis = (0, redis_1.createClient)().on("error", (err) => console.log("Redis Client Error", err));
 redis.connect();
 function main() {
@@ -34,6 +35,8 @@ function main() {
             console.log("ID:", id);
             // const files = await downloadS3Files(`output/${id}/`);
             yield (0, aws_1.downloadS3Files)(id);
+            yield (0, utils_1.buildProject)(id);
+            yield (0, aws_1.uploadFinalDist)(id);
         }
     });
 }

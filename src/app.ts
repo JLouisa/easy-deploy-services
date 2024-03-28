@@ -11,7 +11,8 @@
 import { env } from "./env";
 
 import { commandOptions, createClient } from "redis";
-import { downloadS3Files } from "./aws";
+import { downloadS3Files, uploadFinalDist } from "./aws";
+import { buildProject } from "./utils";
 
 const redis = createClient().on("error", (err) =>
   console.log("Redis Client Error", err)
@@ -41,6 +42,8 @@ async function main() {
 
     // const files = await downloadS3Files(`output/${id}/`);
     await downloadS3Files(id);
+    await buildProject(id);
+    await uploadFinalDist(id);
   }
 }
 

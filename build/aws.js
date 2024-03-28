@@ -12,13 +12,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.downloadS3Files = void 0;
+exports.uploadFinalDist = exports.uploadFile = exports.downloadS3Files = void 0;
 const env_1 = require("./env");
+const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const utils_1 = require("./utils");
 const promises_1 = require("fs/promises");
 const client_s3_1 = require("@aws-sdk/client-s3");
+// Check if the upload service is AWS
 const uploadService = env_1.env.UPLOAD_SERVICE === "aws" ? true : false;
+// Initialize S3 client
 const s3 = new client_s3_1.S3Client([
     {
         region: uploadService ? env_1.env.AWS_REGION : "auto",
@@ -34,13 +37,7 @@ const s3 = new client_s3_1.S3Client([
         // debug: true, // Enable debugging
     },
 ]);
-// const streamToString = (stream: NodeJS.ReadableStream) =>
-//   new Promise<string>((resolve, reject) => {
-//     const chunks: Buffer[] = [];
-//     stream.on("data", (chunk) => chunks.push(chunk));
-//     stream.on("error", reject);
-//     stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-//   });
+// Convert stream to string
 const streamToString = (stream) => new Promise((resolve, reject) => {
     const chunks = [];
     stream.on("data", (chunk) => chunks.push(chunk));
@@ -64,7 +61,7 @@ const downloadS3Files = (id) => __awaiter(void 0, void 0, void 0, function* () {
     // Download each file asynchronously
     const downloadPromises = (getListAllFiles.Contents || [])
         .map((object) => __awaiter(void 0, void 0, void 0, function* () {
-        console.log("Object:", object);
+        // console.log("Object:", object);
         if (object === null || object === void 0 ? void 0 : object.Key) {
             const objectKey = object.Key;
             const commandGet = new client_s3_1.GetObjectCommand({
@@ -91,3 +88,48 @@ const downloadS3Files = (id) => __awaiter(void 0, void 0, void 0, function* () {
         .catch((error) => console.error("Error occurred during download:", error));
 });
 exports.downloadS3Files = downloadS3Files;
+const uploadFile = (fileName, localFilePath) => __awaiter(void 0, void 0, void 0, function* () {
+    console.log("Stared uploading file to S3");
+    // Create a readable stream from the local file
+    const fileStream = fs_1.default.createReadStream(localFilePath);
+    // Configure S3 parameters
+    const params = {
+        Bucket: env_1.env.BUCKET_NAME,
+        Key: fileName,
+        Body: fileStream,
+    };
+    const command = new client_s3_1.PutObjectCommand(params);
+    // Upload the file asynchronously
+    try {
+        const response = yield s3.send(command);
+        console.log(response);
+        if (response) {
+            console.log("File uploaded successfully");
+        }
+        else {
+            console.log("Error occurred while uploading the file");
+        }
+    }
+    catch (error) {
+        console.error("Error uploading file:", error);
+        throw error; // Re-throw the error for handling upstream
+    }
+});
+exports.uploadFile = uploadFile;
+const uploadFinalDist = (id) => __awaiter(void 0, void 0, void 0, function* () {
+    // Get all files in the dist folder
+    const folderPath = path_1.default.join((0, utils_1.getOutputDir)(), `${id}/dist`);
+    const allFiles = (0, utils_1.getAllFiles)(folderPath);
+    // Upload each file to S3
+    allFiles.forEach((file) => __awaiter(void 0, void 0, void 0, function* () {
+        // Get the file name
+        const filePath = `dist/${file
+            .slice((0, utils_1.getOutputDir)().length + 1)
+            .replace("dist/", "")}`;
+        console.log("File path:", file);
+        console.log("Uploading fileName:", filePath);
+        // Upload the file to S3
+        (0, exports.uploadFile)(filePath, file);
+    }));
+});
+exports.uploadFinalDist = uploadFinalDist;
